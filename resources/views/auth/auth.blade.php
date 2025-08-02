@@ -199,6 +199,9 @@
                                         <span class="input-group-text cursor-pointer"><i
                                                 class="icon-base bx bx-hide"></i></span>
                                     </div>
+                                    @error('password')
+                                        <div class="error">{{ $message }}</div>
+                                    @enderror
                                 </div>
 
                                 <div class="form-password-toggle mb-6">
@@ -209,6 +212,9 @@
                                         <span class="input-group-text cursor-pointer"><i
                                                 class="icon-base bx bx-hide"></i></span>
                                     </div>
+                                    @error('password_confirmation')
+                                        <div class="error">{{ $message }}</div>
+                                    @enderror
                                 </div>
 
                                 <button type="submit" class="btn btn-primary d-grid w-100">Update password</button>
