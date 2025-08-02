@@ -20,25 +20,32 @@ class LaradminServiceProvider extends ServiceProvider
         $this->loadRoutesFrom(__DIR__.'/../routes/admin.php');
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'laradmin');
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
-
-        $this->publishes([
-            __DIR__.'/../config/laradmin.php' => config_path('laradmin.php'),
-        ], 'laradmin-config');
-
-        $this->publishes([
-            __DIR__.'/../resources/views' => resource_path('views/vendor/laradmin'),
-        ], 'laradmin-views');
-
+    
         if ($this->app->runningInConsole()) {
+    
+            // Publish config
+            $this->publishes([
+                __DIR__.'/../config/laradmin.php' => config_path('laradmin.php'),
+            ], 'laradmin-config');
+    
+            // Publish views
+            $this->publishes([
+                __DIR__.'/../resources/views' => resource_path('views/vendor/laradmin'),
+            ], 'laradmin-views');
+    
+            // Publish public assets
+            $this->publishes([
+                __DIR__.'/../public' => public_path('vendor/laradmin'),
+            ], 'laradmin-assets');
+    
+            // Register CLI command
             $this->commands([InstallLaradminCommand::class]);
         }
-
-        // middleware aliases
+    
+        // Middleware aliases
         $router = $this->app['router'];
         $router->aliasMiddleware('role', EnsureRole::class);
         $router->aliasMiddleware('must.change.password', MustChangePassword::class);
-        $this->publishes([
-            __DIR__.'/../public' => public_path('vendor/laradmin'),
-        ], 'laradmin-assets');
     }
+
 }
