@@ -9,9 +9,11 @@
   },
   "autoload": {
     "psr-4": {
-      "Akhilesh\\Laradmin\\": "src/",
-      "files": ["src/Support/helpers.php"]
-    }
+      "Akhilesh\\Laradmin\\": "src/"
+    },
+    "files": [
+      "src/Support/helpers.php"
+    ]
   },
   "extra": {
     "laravel": {
