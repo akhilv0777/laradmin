@@ -1,5 +1,5 @@
 {
-  "name": "akhilesh/laradmin",
+  "name": "akhilv/laradmin",
   "description": "Custom admin dashboard + auth + role system",
   "type": "library",
   "require": {
