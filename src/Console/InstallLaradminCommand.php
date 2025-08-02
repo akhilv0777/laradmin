@@ -4,40 +4,38 @@ namespace Akhilesh\Laradmin\Console;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\File;
 use Spatie\Permission\Models\Role;
 use App\Models\User;
 
 class InstallLaradminCommand extends Command
 {
     protected $signature = 'laradmin:install {--roles=}';
-    protected $description = 'Setup Laradmin (spatie roles, assets, views, super admin)';
+    protected $description = 'Setup Spatie roles and seed Super Admin + migrations';
 
     public function handle(): int
     {
-        // 1. Publish all package resources
-        $this->info('🔧 Publishing config, views, and assets...');
-        $this->callSilent('vendor:publish', ['--tag' => 'laradmin-config']);
-        $this->callSilent('vendor:publish', ['--tag' => 'laradmin-views']);
-        $this->callSilent('vendor:publish', ['--tag' => 'laradmin-assets']);
-        $this->callSilent('vendor:publish', ['--provider' => 'Spatie\\Permission\\PermissionServiceProvider']);
+        $this->addHasRolesTraitToUserModel();
 
-        // 2. Run migrations
-        $this->info('📦 Running migrations...');
+        $this->call('vendor:publish', [
+            '--provider' => 'Spatie\\Permission\\PermissionServiceProvider',
+            '--force' => false
+        ]);
+
         $this->call('migrate');
 
-        // 3. Create roles
-        $this->info('🔐 Seeding roles...');
         $rolesInput = $this->option('roles') ?: $this->ask('Comma-separated roles (blank = defaults)', '');
         $roles = array_filter(array_map('trim', $rolesInput ? explode(',', $rolesInput) : config('laradmin.default_roles', [])));
         if (empty($roles)) $roles = ['user'];
 
-        foreach ($roles as $r) Role::findOrCreate($r);
+        foreach ($roles as $r) {
+            Role::findOrCreate($r);
+        }
+
         Role::findOrCreate('super_admin');
 
-        // 4. Create super admin
         $email = config('laradmin.super_admin.email');
         $password = config('laradmin.super_admin.password');
+
         $user = User::firstOrCreate(['email' => $email], [
             'name' => config('laradmin.super_admin.name'),
             'password' => Hash::make($password),
@@ -49,30 +47,41 @@ class InstallLaradminCommand extends Command
             $user->forceFill(['must_change_password' => true])->save();
         }
 
-        $this->info("✅ Super admin created: {$email} / {$password}");
-        $this->info('Roles: '.implode(', ', $roles));
-
-        // 5. Check if User model has HasRoles trait
-        $this->checkUserModelForHasRoles();
-
-        $this->info('🎉 Laradmin installation complete!');
+        $this->info("✅ Super admin: {$email} / {$password}");
+        $this->info('✅ Roles: ' . implode(', ', $roles));
+        $this->info('✅ Laradmin installed successfully');
         return self::SUCCESS;
     }
 
-    protected function checkUserModelForHasRoles(): void
+    protected function addHasRolesTraitToUserModel(): void
     {
-        $userModel = app_path('Models/User.php');
-        if (!File::exists($userModel)) {
-            $this->warn('⚠️ User model not found at expected path: app/Models/User.php');
-            return;
+        $userModelPath = app_path('Models/User.php');
+
+        if (!file_exists($userModelPath)) return;
+
+        $content = file_get_contents($userModelPath);
+
+        // Already present? Then do nothing
+        if (str_contains($content, 'HasRoles')) return;
+
+        // Step 1: Add use statement if missing
+        if (!str_contains($content, 'use Spatie\\Permission\\Traits\\HasRoles;')) {
+            $content = preg_replace(
+                '/namespace App\\\Models;(\s+)/',
+                "namespace App\Models;\n\nuse Spatie\\Permission\\Traits\\HasRoles;$1",
+                $content
+            );
         }
 
-        $content = File::get($userModel);
-        if (!str_contains($content, 'HasRoles')) {
-            $this->warn("⚠️ Please add 'use HasRoles;' in your User model.");
-            $this->line("Eg:");
-            $this->line("use Spatie\Permission\Traits\HasRoles;");
-            $this->line("class User extends Authenticatable { use HasRoles; }");
+        // Step 2: Inject 'use HasRoles;' into class body
+        if (preg_match('/class\s+User\s+extends\s+[^\s]+\s*{/', $content)) {
+            $content = preg_replace(
+                '/class\s+User\s+extends\s+[^\s]+\s*{/',
+                "$0\n    use HasRoles;",
+                $content
+            );
+
+            file_put_contents($userModelPath, $content);
         }
     }
 }
